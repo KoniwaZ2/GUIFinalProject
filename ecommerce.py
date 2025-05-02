@@ -250,32 +250,22 @@ class EcommerceApp:
                 (product_id, product_price),
             )
             product = cursor.fetchone()
-            if not product:
-                cursor.execute(
-                    """INSERT INTO cartdetails (cart_id, product_code, quantity, product_price) VALUES (%s, %s, %s, %s)""",
-                    (cart_id, product_id, 1, product_price),
-                )
-                db_conn.commit()
-                self.create_cart_tab()
-                messagebox.showinfo("Success", "Product added to cart")
-            else:
-                cursor.execute(
-                    """UPDATE cartdetails SET quantity = quantity + 1 WHERE product_code = %s AND cart_id = %s""",
-                    (product_id, cart_id),
-                )
-                db_conn.commit()
-                self.create_cart_tab()
-                messagebox.showinfo("Success", "Product quantity updated in cart")
+            cursor.execute(
+                """INSERT INTO cartdetails (cart_id, product_code, quantity, product_price) VALUES (%s, %s, %s, %s)""",
+                (cart_id, product_id, 1, product_price),
+            )
+            db_conn.commit()
+            self.create_cart_tab()
+            messagebox.showinfo("Success", "Product added to cart")
         else:
             cursor.execute(
                 """SELECT cart_id FROM cart where customer_id = %s""", (self.user_id,)
             )
             cart = cursor.fetchone()
             cart_id = cart[0]
-            self.cart_id = cart_id
             cursor.execute(
-                """SELECT product_code, product_price FROM cartdetails where product_code = %s AND product_price = %s""",
-                (product_id, product_price),
+                """SELECT product_code, product_price FROM cartdetails where product_code = %s AND product_price = %s AND cart_id = %s""",
+                (product_id, product_price, cart_id),
             )
             product = cursor.fetchone()
             if not product:
