@@ -3,6 +3,7 @@ from tkinter import ttk
 import mysql.connector
 from tkinter import messagebox
 import time
+import atexit
 
 db_conn = mysql.connector.connect(
     host="localhost", user="root", password="", database="ecommerce"
@@ -16,8 +17,12 @@ class EcommerceApp:
         self.root = root
         self.root.title("Ecommerce App")
         self.user_id = None
+        self.transaction_id = None
 
         self.tab_control = ttk.Notebook(root)
+
+        self.start_time = time.time()  # Record the start time
+        atexit.register(self.on_exit)  # Register the exit handler
 
         self.register_tab = tk.Frame(self.tab_control)
         self.tab_control.add(self.register_tab, text="Register")
@@ -27,8 +32,18 @@ class EcommerceApp:
 
         self.tab_control.pack(expand=1, fill="both")
 
+        # messagebox.showinfo(
+        #     "Disclaimer",
+        #     "Sistem ini dibuat menggunakan sudut pandang sebagai pembeli saja.\nPembeli tidak dapat mengubah status transaksi, tidak dapat menambahkan/mengubah produk, dsb (admin privilege).",
+        # )
+
         self.create_register_tab()
         self.create_login_tab()
+        print("App initiated")
+
+    def on_exit(self):
+        elapsed_time = time.time() - self.start_time
+        print(f"App closed after running for {elapsed_time:.2f} seconds")
 
     def create_register_tab(self):  # completed
         tk.Label(self.register_tab, text="Name:").grid(
@@ -66,6 +81,7 @@ class EcommerceApp:
             text="Register",
             command=self.register,
         ).grid(row=10, column=0, columnspan=2, pady=10)
+        print("Register tab created")
 
     def create_login_tab(self):  # completed
         tk.Label(self.login_tab, text="Email:").grid(row=0, column=0, padx=10, pady=10)
@@ -83,6 +99,7 @@ class EcommerceApp:
             text="Login",
             command=self.login,
         ).grid(row=4, column=0, columnspan=2, pady=10)
+        print("Login tab created")
 
     def create_product_tab(self):  # completed
         for widget in self.product_tab.winfo_children():
@@ -109,8 +126,9 @@ class EcommerceApp:
                     p_id, p_price
                 ),
             ).grid(row=0, column=3, padx=10, pady=10)
+        print("Product tab created")
 
-    def create_cart_tab(self):
+    def create_cart_tab(self):  # completed
         for widget in self.cart_tab.winfo_children():
             widget.destroy()
 
@@ -136,6 +154,8 @@ class EcommerceApp:
             (self.user_id,),
         )
         cart_items = cursor.fetchall()
+        cart_id = cart_items[0][0] if cart_items else None
+        print("Cart ID:", cart_id)
         if not cart_items:
             tk.Label(self.cart_tab, text="Your cart is empty.").pack(pady=10)
             return
@@ -168,8 +188,224 @@ class EcommerceApp:
             command=lambda: self.checkout(cart_items),
         ).pack(pady=10)
 
-    def create_transaction_tab(self):
-        pass
+    def create_transaction_tab(self):  # completed
+        for widget in self.transaction_tab.winfo_children():
+            widget.destroy()
+
+        tk.Label(self.transaction_tab, text="Transactions").pack(pady=10)
+
+        if not self.user_id:
+            tk.Label(
+                self.transaction_tab, text="Please log in to view your transactions."
+            ).pack(pady=10)
+            return
+
+        cursor.execute(
+            """SELECT 
+            t.transaction_id, t.recipient_name, t.total_amount, t.order_status
+            FROM 
+            transactions t
+            WHERE 
+            t.customer_id = %s 
+            ORDER BY t.transaction_id DESC LIMIT 10""",
+            (self.user_id,),
+        )
+        transactions = cursor.fetchall()
+        if not transactions:
+            tk.Label(self.transaction_tab, text="No transactions found.").pack(pady=10)
+            return
+
+        for transaction in transactions:
+            transaction_frame = tk.Frame(self.transaction_tab)
+            transaction_frame.pack(pady=5)
+            tk.Label(
+                transaction_frame,
+                text=f"Transaction ID: {transaction[0]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=0, padx=10, pady=10, sticky="w")
+            tk.Label(
+                transaction_frame,
+                text=f"Recipient Name: {transaction[1]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=1, padx=10, pady=10, sticky="w")
+            tk.Label(
+                transaction_frame,
+                text=f"Total Amount: {transaction[2]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=2, padx=10, pady=10, sticky="w")
+            tk.Label(
+                transaction_frame,
+                text=f"Order Status: {transaction[3]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=3, padx=10, pady=10, sticky="w")
+            tk.Button(
+                transaction_frame,
+                text="View Details",
+                command=lambda t_id=transaction[0]: self.create_transaction_details_tab(
+                    t_id
+                ),
+            ).grid(row=0, column=4, padx=10, pady=10, sticky="w")
+        print("Transaction tab created")
+
+    def create_transaction_details_tab(self, transaction_id):  # completed
+        self.transactiondetails_tab = tk.Frame(self.tab_control)
+        self.tab_control.add(self.transactiondetails_tab, text="Transaction Details")
+        for widget in self.transactiondetails_tab.winfo_children():
+            widget.destroy()
+
+        tk.Label(self.transactiondetails_tab, text="Transaction Details").pack(pady=10)
+        self.tab_control.select(self.transactiondetails_tab)
+
+        if not self.user_id:
+            tk.Label(
+                self.transactiondetails_tab,
+                text="Please log in to view transaction details.",
+            ).pack(pady=10)
+            return
+
+        cursor.execute(
+            """SELECT 
+            td.transaction_id, td.product_code, p.product_name, td.quantity, td.total
+            FROM 
+            transactiondetails td
+            JOIN 
+            product p ON td.product_code = p.product_code
+            WHERE 
+            td.transaction_id = %s""",
+            (transaction_id,),
+        )
+        transaction_details = cursor.fetchall()
+        if not transaction_details:
+            tk.Label(
+                self.transactiondetails_tab, text="No transaction details found."
+            ).pack(pady=10)
+            return
+
+        for detail in transaction_details:
+            detail_frame = tk.Frame(self.transactiondetails_tab)
+            detail_frame.pack(pady=5)
+            tk.Label(
+                detail_frame,
+                text=f"Product ID: {detail[1]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=0, padx=10, pady=10, sticky="w")
+            tk.Label(
+                detail_frame,
+                text=f"Product Name: {detail[2]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=1, padx=10, pady=10, sticky="w")
+            tk.Label(
+                detail_frame,
+                text=f"Quantity: {detail[3]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=2, padx=10, pady=10, sticky="w")
+            tk.Label(
+                detail_frame,
+                text=f"Total Price: {detail[4]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=3, padx=10, pady=10, sticky="w")
+        tk.Button(
+            self.transactiondetails_tab,
+            text="back",
+            command=lambda: self.tab_control.forget(self.transactiondetails_tab),
+        ).pack(pady=10)
+        print("Transaction details tab created")
+        print(f"Transaction ID: {transaction_id}")
+
+    def create_profile_tab(self):
+        for widget in self.profile_tab.winfo_children():
+            widget.destroy()
+        tk.Label(self.profile_tab, text="Profile").pack(pady=10)
+        if not self.user_id:
+            tk.Label(self.profile_tab, text="Please log in to view your profile.").pack(
+                pady=10
+            )
+            return
+        cursor.execute(
+            """SELECT customer_name, phone_number, email, address, point FROM customer WHERE customer_id = %s""",
+            (self.user_id,),
+        )
+        user_profile = cursor.fetchone()
+        if user_profile:
+            tk.Label(self.profile_tab, text=f"Name: {user_profile[0]}").pack(pady=5)
+            tk.Label(self.profile_tab, text=f"Phone: {user_profile[1]}").pack(pady=5)
+            tk.Label(self.profile_tab, text=f"Email: {user_profile[2]}").pack(pady=5)
+            tk.Label(self.profile_tab, text=f"Address: {user_profile[3]}").pack(pady=5)
+            point_frame = tk.Frame(self.profile_tab)
+            point_frame.pack(pady=5)
+            tk.Label(point_frame, text=f"Points: {user_profile[4]}").grid(
+                row=0, column=0, padx=10, pady=10
+            )
+            tk.Button(
+                point_frame,
+                text="History",
+                command=lambda: self.create_point_history_tab(),
+            ).grid(row=0, column=1, padx=10, pady=10)
+            print(f"Profile loaded for user ID: {self.user_id}")
+
+    def create_point_history_tab(self):  # completed
+        self.point_history_tab = tk.Frame(self.tab_control)
+        self.tab_control.add(self.point_history_tab, text="Point History")
+        self.tab_control.select(self.point_history_tab)
+        for widget in self.point_history_tab.winfo_children():
+            widget.destroy()
+        tk.Label(self.point_history_tab, text="Point History").pack(pady=10)
+        if not self.user_id:
+            tk.Label(
+                self.point_history_tab, text="Please log in to view your point history."
+            ).pack(pady=10)
+            return
+        cursor.execute(
+            """SELECT transaction_id, customer_id, amount, date FROM pointshistory WHERE customer_id = %s LIMIT 10;""",
+            (self.user_id,),
+        )
+        point_history = cursor.fetchall()
+        if not point_history:
+            tk.Label(self.point_history_tab, text="No point history found.").pack(
+                pady=10
+            )
+            return
+        for history in point_history:
+            history_frame = tk.Frame(self.point_history_tab)
+            history_frame.pack(pady=5)
+            tk.Label(
+                history_frame,
+                text=f"Transaction ID: {history[0]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=0, padx=10, pady=10, sticky="w")
+            tk.Label(
+                history_frame,
+                text=f"Customer ID: {history[1]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=1, padx=10, pady=10, sticky="w")
+            tk.Label(
+                history_frame,
+                text=f"Amount: {history[2]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=2, padx=10, pady=10, sticky="w")
+            tk.Label(
+                history_frame,
+                text=f"Date: {history[3]}",
+                anchor="w",
+                width=20,
+            ).grid(row=0, column=3, padx=10, pady=10, sticky="w")
+        tk.Button(
+            self.point_history_tab,
+            text="Back",
+            command=lambda: self.tab_control.forget(self.point_history_tab),
+        ).pack(pady=10)
+        print("Point history tab created")
 
     def login(self):  # completed
         email = self.login_email_entry.get()
@@ -197,6 +433,9 @@ class EcommerceApp:
             self.transaction_tab = tk.Frame(self.tab_control)
             self.tab_control.add(self.transaction_tab, text="Transactions")
 
+            self.profile_tab = tk.Frame(self.tab_control)
+            self.tab_control.add(self.profile_tab, text="Profile")
+
             self.tab_control.select(self.product_tab)
 
             self.tab_control.forget(self.register_tab)
@@ -205,6 +444,8 @@ class EcommerceApp:
             self.create_product_tab()
             self.create_cart_tab()
             self.create_transaction_tab()
+            self.create_profile_tab()
+
         else:
             print("Wrong email or password")
             messagebox.showerror("Error", "Wrong email or password")
@@ -221,8 +462,15 @@ class EcommerceApp:
             (name, phone, email, password, address),
         )
         db_conn.commit()
+        if cursor.rowcount == 0:
+            messagebox.showerror("Error", "Registration failed")
+            print("Registration failed")
+            return
 
         messagebox.showinfo("Success", "Registration successful")
+        print(
+            f"Registration successful\nDetails:\nName: {name}\nPhone: {phone}\nEmail: {email}\nPassword: {password}\nAddress: {address}"
+        )
         self.name_entry.delete(0, tk.END)
         self.phone_entry.delete(0, tk.END)
         self.customer_email_entry.delete(0, tk.END)
@@ -255,8 +503,13 @@ class EcommerceApp:
                 (cart_id, product_id, 1, product_price),
             )
             db_conn.commit()
+            if cursor.rowcount == 0:
+                messagebox.showerror("Error", "Failed to add product to cart")
+                print("Failed to add product to cart")
+                return
             self.create_cart_tab()
             messagebox.showinfo("Success", "Product added to cart")
+            print(f"Product {product_id} added to cart")
         else:
             cursor.execute(
                 """SELECT cart_id FROM cart where customer_id = %s""", (self.user_id,)
@@ -276,6 +529,7 @@ class EcommerceApp:
                 db_conn.commit()
                 self.create_cart_tab()
                 messagebox.showinfo("Success", "Product added to cart")
+                print(f"Product {product_id} added to cart")
             else:
                 cursor.execute(
                     """UPDATE cartdetails SET quantity = quantity + 1 WHERE product_code = %s AND cart_id = %s""",
@@ -284,6 +538,7 @@ class EcommerceApp:
                 db_conn.commit()
                 self.create_cart_tab()
                 messagebox.showinfo("Success", "Product quantity updated in cart")
+                print(f"Product {product_id} quantity updated in cart")
 
     def remove_from_cart(self, product_id):  # completed
         cursor.execute(
@@ -299,6 +554,7 @@ class EcommerceApp:
         self.create_cart_tab()
         self.create_product_tab()
         messagebox.showinfo("Success", "Product removed from cart")
+        print("Product removed from cart")
         cursor.execute(
             """SELECT cd.cart_id FROM cartdetails cd JOIN cart c on cd.cart_id = c.cart_id WHERE c.customer_id = %s""",
             (self.user_id,),
@@ -310,10 +566,12 @@ class EcommerceApp:
             )
             db_conn.commit()
             messagebox.showinfo("Success", "Cart is empty, cart deleted")
+            print("Cart is empty, cart deleted")
             self.create_cart_tab()
             self.create_product_tab()
 
-    def checkout(self, cart_items):
+    def checkout(self, cart_items):  # completed\
+        print(cart_items)
         cursor.execute(
             """INSERT INTO transactions (customer_id, recipient_name, total_amount, order_status) VALUES (%s, %s, %s, "Pending")""",
             (
@@ -334,7 +592,30 @@ class EcommerceApp:
         )
         transaction = cursor.fetchone()
         transaction_id = transaction[0]
-        print(cart_items)
+        cursor.execute(
+            """INSERT INTO pointshistory (transaction_id, customer_id, amount) VALUES (%s, %s, %s)""",
+            (
+                transaction_id,
+                self.user_id,
+                sum(float(item[4]) for item in cart_items if item[4] is not None) * 0.1,
+            ),
+        )
+        db_conn.commit()
+        cursor.execute(
+            """SELECT point FROM customer WHERE customer_id = %s""",
+            (self.user_id,),
+        )
+        point = cursor.fetchone()
+        point = (
+            point[0]
+            + sum(float(item[4]) for item in cart_items if item[4] is not None) * 0.1
+        )
+        cursor.execute(
+            """UPDATE customer SET point = %s WHERE customer_id = %s""",
+            (point, self.user_id),
+        )
+        db_conn.commit()
+        self.create_profile_tab()
         for item in cart_items:
             cursor.execute(
                 """INSERT INTO transactiondetails (transaction_id, product_code, quantity, total) VALUES (%s, %s, %s, %s)""",
@@ -347,6 +628,13 @@ class EcommerceApp:
             )
             db_conn.commit()
         messagebox.showinfo("Success", "Checkout successful")
+        print("Item inserted into transactiondetails")
+        cursor.execute(
+            """DELETE FROM cartdetails WHERE cart_id = %s""",
+            (cart_items[0][0],),
+        )
+        db_conn.commit()
+        print("Checkout successful\nCart cleared")
         self.create_cart_tab()
         self.create_transaction_tab()
 
