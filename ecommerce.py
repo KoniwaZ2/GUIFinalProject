@@ -2,8 +2,6 @@ import tkinter as tk
 from tkinter import ttk
 import mysql.connector
 from tkinter import messagebox
-import time
-import atexit
 
 db_conn = mysql.connector.connect(
     host="localhost", user="root", password="", database="ecommerce"
@@ -21,9 +19,6 @@ class EcommerceApp:
 
         self.tab_control = ttk.Notebook(root)
 
-        self.start_time = time.time()  # Record the start time
-        atexit.register(self.on_exit)  # Register the exit handler
-
         self.register_tab = tk.Frame(self.tab_control)
         self.tab_control.add(self.register_tab, text="Register")
 
@@ -32,18 +27,14 @@ class EcommerceApp:
 
         self.tab_control.pack(expand=1, fill="both")
 
-        # messagebox.showinfo(
-        #     "Disclaimer",
-        #     "Sistem ini dibuat menggunakan sudut pandang sebagai pembeli saja.\nPembeli tidak dapat mengubah status transaksi, tidak dapat menambahkan/mengubah produk, dsb (admin privilege).",
-        # )
+        messagebox.showinfo(
+            "Disclaimer",
+            "Sistem ini dibuat menggunakan sudut pandang sebagai pembeli saja.\nPembeli tidak dapat mengubah status transaksi, tidak dapat menambahkan/mengubah produk, dsb (admin privilege).",
+        )
 
         self.create_register_tab()
         self.create_login_tab()
         print("App initiated")
-
-    def on_exit(self):
-        elapsed_time = time.time() - self.start_time
-        print(f"App closed after running for {elapsed_time:.2f} seconds")
 
     def create_register_tab(self):  # completed
         tk.Label(self.register_tab, text="Name:").grid(
