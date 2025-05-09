@@ -173,6 +173,13 @@ class EcommerceApp:
                 command=lambda p_id=item[1]: self.remove_from_cart(p_id),
             ).grid(row=0, column=5, padx=10, pady=10, sticky="w")
 
+        tk.Label(
+            self.cart_tab, text=f"Total quantity: {sum(item[3] for item in cart_items)}"
+        ).pack(pady=10)
+        tk.Label(
+            self.cart_tab, text=f"Total Amount: {sum(item[4] for item in cart_items)}"
+        ).pack(pady=10)
+
         tk.Button(
             self.cart_tab,
             text="Checkout",
@@ -248,7 +255,10 @@ class EcommerceApp:
         for widget in self.transactiondetails_tab.winfo_children():
             widget.destroy()
 
-        tk.Label(self.transactiondetails_tab, text="Transaction Details").pack(pady=10)
+        tk.Label(
+            self.transactiondetails_tab,
+            text="Transaction Details (Last 10 transaction)",
+        ).pack(pady=10)
         self.tab_control.select(self.transactiondetails_tab)
 
         if not self.user_id:
@@ -266,7 +276,8 @@ class EcommerceApp:
             JOIN 
             product p ON td.product_code = p.product_code
             WHERE 
-            td.transaction_id = %s""",
+            td.transaction_id = %s 
+            LIMIT 10""",
             (transaction_id,),
         )
         transaction_details = cursor.fetchall()
@@ -303,9 +314,17 @@ class EcommerceApp:
                 anchor="w",
                 width=20,
             ).grid(row=0, column=3, padx=10, pady=10, sticky="w")
+        tk.Label(
+            self.transactiondetails_tab,
+            text=f"Total quantity: {sum(detail[3] for detail in transaction_details)}",
+        ).pack(pady=10)
+        tk.Label(
+            self.transactiondetails_tab,
+            text=f"Total Amount: {sum(detail[4] for detail in transaction_details)}",
+        ).pack(pady=10)
         tk.Button(
             self.transactiondetails_tab,
-            text="back",
+            text="Back",
             command=lambda: self.tab_control.forget(self.transactiondetails_tab),
         ).pack(pady=10)
         print("Transaction details tab created")
@@ -326,7 +345,7 @@ class EcommerceApp:
         )
         user_profile = cursor.fetchone()
         if user_profile:
-            tk.Label(self.profile_tab, text=f"Name: {user_profile[0]}").pack(pady=5)
+            tk.Label(self.profile_tab, text=f"Name: {user_profile[0]}").grid
             tk.Label(self.profile_tab, text=f"Phone: {user_profile[1]}").pack(pady=5)
             tk.Label(self.profile_tab, text=f"Email: {user_profile[2]}").pack(pady=5)
             tk.Label(self.profile_tab, text=f"Address: {user_profile[3]}").pack(pady=5)
@@ -348,7 +367,9 @@ class EcommerceApp:
         self.tab_control.select(self.point_history_tab)
         for widget in self.point_history_tab.winfo_children():
             widget.destroy()
-        tk.Label(self.point_history_tab, text="Point History").pack(pady=10)
+        tk.Label(self.point_history_tab, text="Point History (Last 10 history)").pack(
+            pady=10
+        )
         if not self.user_id:
             tk.Label(
                 self.point_history_tab, text="Please log in to view your point history."
@@ -391,6 +412,10 @@ class EcommerceApp:
                 anchor="w",
                 width=20,
             ).grid(row=0, column=3, padx=10, pady=10, sticky="w")
+        tk.Label(
+            self.point_history_tab,
+            text=f"Total Points: {sum(history[2] for history in point_history)}",
+        ).pack(pady=10)
         tk.Button(
             self.point_history_tab,
             text="Back",
