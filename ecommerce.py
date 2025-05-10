@@ -27,10 +27,15 @@ class EcommerceApp:
 
         self.tab_control.pack(expand=1, fill="both")
 
-        # messagebox.showinfo(
-        #     "Disclaimer",
-        #     "Sistem ini dibuat menggunakan sudut pandang sebagai pembeli saja.\nPembeli tidak dapat mengubah status transaksi, tidak dapat menambahkan/mengubah produk, dsb (admin privilege).",
-        # )
+        disclaimer_label = tk.Label(
+            self.root,
+            text="Sistem ini dibuat menggunakan sudut pandang sebagai pembeli saja.\n"
+            "Pembeli tidak dapat mengubah status transaksi, tidak dapat menambahkan/mengubah produk, dsb (admin privilege).",
+            fg="red",
+            wraplength=400,
+            justify="center",
+        )
+        disclaimer_label.pack(pady=10)
 
         self.create_register_tab()
         self.create_login_tab()
